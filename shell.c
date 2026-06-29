@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <wait.h>
 #define MAX_LINE 80 /* The maximum length command */
@@ -18,7 +19,7 @@ int main(void) {
      * (3) parent will invoke wait() unless command included &
      */
 
-    char buffer[1024];
+    char buffer[MAX_LINE];
     if (fgets(buffer, sizeof(buffer), stdin) == NULL) {
       printf("\nencountered EOF\n");
       break;
@@ -40,6 +41,7 @@ int main(void) {
     int index = 0;
     while (token != NULL) {
       if (strcmp(token, "&") == 0) {
+        printf("& encountered\n");
         run_in_background = 1;
       } else
         args[index++] = token;
@@ -58,8 +60,12 @@ int main(void) {
       printf("execvp failed\n");
       exit(0);
     } else {
+
       if (!run_in_background)
-        wait(NULL);
+        waitpid(pid, NULL, 0);
+
+      while (waitpid(-1, NULL, WNOHANG) > 0)
+        ;
     }
   }
   return 0;
