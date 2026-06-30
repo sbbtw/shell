@@ -17,6 +17,8 @@ int main(void) {
   int is_previous = 0;
   int is_previous_first = 1;
   while (should_run) {
+    while (waitpid(-1, NULL, WNOHANG) > 0)
+      ;
     printf("osh> ");
     fflush(stdout);
 
@@ -90,9 +92,6 @@ int main(void) {
 
       if (!run_in_background)
         waitpid(pid, NULL, 0);
-
-      while (waitpid(-1, NULL, WNOHANG) > 0)
-        ;
     }
 
     // if user type !! we shouldn't change the prev_args
