@@ -8,6 +8,14 @@
 int main(void) {
   char *args[MAX_LINE / 2 + 1]; /* command line arguments */
   int should_run = 1;           /* flag to determine when to exit program */
+  char *prev_args[MAX_LINE / 2 + 1];
+  int size = MAX_LINE / 2 + 1;
+  for (int i = 0; i < size; i++) {
+    prev_args[i] = NULL;
+  }
+
+  int is_previous = 0;
+  int is_previous_first = 1;
   while (should_run) {
     printf("osh> ");
     fflush(stdout);
@@ -39,16 +47,31 @@ int main(void) {
     int run_in_background = 0;
 
     int index = 0;
-    while (token != NULL) {
-      if (strcmp(token, "&") == 0) {
-        printf("& encountered\n");
-        run_in_background = 1;
-      } else
-        args[index++] = token;
-      token = strtok(NULL, " ");
-    }
 
-    args[index] = NULL;
+    if (strcmp(token, "!!") == 0) {
+      if (is_previous_first) {
+        printf("No previous command found...\n");
+        continue;
+      }
+      is_previous = 1;
+      for (int i = 0; prev_args[i] != NULL; i++) {
+        printf("%s ", prev_args[i]);
+      }
+      printf("\n");
+    } else {
+
+      while (token != NULL) {
+        if (strcmp(token, "&") == 0) {
+          printf("& encountered\n");
+          run_in_background = 1;
+        } else
+          args[index++] = token;
+        token = strtok(NULL, " ");
+      }
+
+      args[index] = NULL;
+      is_previous = 0;
+    }
 
     pid_t pid = fork();
 
@@ -56,7 +79,11 @@ int main(void) {
       printf("Can't create the child process\n");
       continue;
     } else if (pid == 0) {
-      execvp(args[0], args);
+      if (is_previous) {
+        execvp(prev_args[0], prev_args);
+      } else {
+        execvp(args[0], args);
+      }
       printf("execvp failed\n");
       exit(0);
     } else {
@@ -67,6 +94,23 @@ int main(void) {
       while (waitpid(-1, NULL, WNOHANG) > 0)
         ;
     }
+
+    // if user type !! we shouldn't change the prev_args
+    if (!is_previous) {
+      int i;
+
+      for (i = 0; prev_args[i] != NULL; i++) {
+        free(prev_args[i]);
+      }
+      for (i = 0; args[i] != NULL; i++) {
+        prev_args[i] = strdup(args[i]);
+      }
+      prev_args[i] = NULL;
+    }
+
+    is_previous_first = 0;
+
+    // TODO -> free prev_args memory
   }
   return 0;
 }
